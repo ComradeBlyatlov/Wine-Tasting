@@ -1,0 +1,561 @@
+---
+title: "Wine Quality"
+output: pdf_document
+---
+## Introduction  
+Wine is a part of culture for many people. For me, wine is the only thing I like in weddings. At some point I will get married and I will have to serve out wine for my guests so they can bear through mine.
+
+## Problem  
+
+Can I determine wine quality based off of quantitative and objective data?
+
+## Data Citation:  
+
+Paulo Cortez, University of Minho, Guimarães, Portugal, http://www3.dsi.uminho.pt/pcortez
+A. Cerdeira, F. Almeida, T. Matos and J. Reis, Viticulture Commission of the Vinho Verde Region(CVRVV), Porto, Portugal
+@2009
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Fundamental Setup
+```{r, echo = TRUE,fig.height = 3, fig.width=5, results = 'hide', message=FALSE}
+library(caret)
+```
+
+```{r}
+df = read.csv("winequality-white.csv",sep=";",header=TRUE)
+```
+```{r}
+for (x in 1:12){
+  y = which(is.na(as.numeric(unlist(df[x]))))
+  print(y)
+}
+```
+Data had no missing values so there was nothing to clean.
+
+
+## Partitioning to Training & Testing
+```{r}
+trainIndex = createDataPartition(df$quality, p = .8, list = FALSE)
+
+train = df[trainIndex,]
+test = df[-trainIndex, ]
+```
+Training & Testing datasets created in 4 to 1 ratio from base data respectively.
+
+## Creating Basic Model
+```{r}
+mod = train(quality ~., data = train, method = "lm",
+             preProcess = c("scale", "center"), trControl = trainControl("none"))
+mod_training = predict(mod, train)
+mod_testing = predict(mod, test)
+
+trainmodDF = data.frame(train$quality, mod_training)
+trainmodDF = subset(trainmodDF, trainmodDF$mod_training>0)
+testmodDF = data.frame(test$quality, mod_testing)
+testmodDF = subset(testmodDF, testmodDF$mod_testing>0)
+```
+Basic model used all variables to determine quality output. Data excludes model values less than zero because logically quality values cannot be less than zero on a scale of 0 to 10 and a single outlier can completely alter the results. The occurences of outliers are only one below zero.  
+
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+
+## Results
+```{r, fig.width=4, fig.height = 3}
+plot(trainmodDF$train.quality, trainmodDF$mod_training, xlab = "Out_Actual",
+     ylab = "Out_Mod", main = "Train")
+cor(trainmodDF$train.quality, trainmodDF$mod_training)
+```
+
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+
+```{r, fig.width=4, fig.height = 3}
+plot(testmodDF$test.quality, testmodDF$mod_testing, xlab = "Out_Actual",
+     ylab = "Out_Mod", main = "Test")
+cor(testmodDF$test.quality, testmodDF$mod_testing)
+```
+
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+
+```{r}
+model = lm(testmodDF$test.quality~testmodDF$mod_testing, data = df)
+summary(residuals(model))
+```
+
+```{r}
+summary(trainmodDF$train.quality) #Actual model stats
+```
+
+```{r}
+summary(trainmodDF$mod_training) #Basic model stats
+```
+
+```{r}
+summary(testmodDF$test.quality) #Actual model stats
+```
+
+```{r}
+summary(testmodDF$mod_testing) #Basic model stats
+```
+
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+
+```{r, fig.width=6, fig.height = 4}
+hist(trainmodDF$mod_training, xlab = "Quality", main = "Distribution Basic Model (Train)")
+```
+
+```{r, fig.width=6, fig.height = 4}
+hist(jitter(trainmodDF$train.quality), xlab = "Quality", main = "Distribution Actual (Train)")
+```
+
+```{r, fig.width=6, fig.height = 4}
+hist(testmodDF$mod_testing, xlab = "Quality", main = "Distribution Basic Model (Test)")
+```
+
+```{r, fig.width=6, fig.height = 4}
+hist(jitter(testmodDF$test.quality), xlab = "Quality", main = "Distribution Actual (Test)")
+```
+
+```{r, fig.width=6, fig.height = 3}
+boxplot(trainmodDF$mod_training, xlab = "Quality",
+        main = "Distribution Basic Model (Train)", horizontal = TRUE)
+```
+
+```{r, fig.width=6, fig.height = 3}
+boxplot(jitter(trainmodDF$train.quality), xlab = "Quality",
+        main = "Distribution Actual (Train)", horizontal = TRUE)
+```
+
+|
+|
+|
+|
+|
+|
+|
+|
+
+```{r, fig.width=6, fig.height = 3}
+boxplot(testmodDF$mod_testing, xlab = "Quality",
+        main = "Distribution Basic Model (Test)", horizontal = TRUE)
+```
+
+```{r, fig.width=6, fig.height = 3}
+boxplot(jitter(testmodDF$test.quality), xlab = "Quality",
+        main = "Distribution Actual (Test)", horizontal = TRUE)
+```
+
+Note: Observations made based off multiple iterations of model and I cannot give out a single number due to nature of RMarkdown.  
+
+Model has a correlation in the .5 are basically meaning about 40%-50% of data points in the plot can't be explained by model. The distribution of the train and test models model are mostly in line with the actual model. The models however skew more to the left, have less outliers, and seldom reach even proximity of the max value of 9. Sometimes the models have values that reach below 3.
+\newline
+\newline
+
+## Exploration for Improvement
+```{r}
+model = glm(quality~., data=train)
+summary(model)
+```
+Summary of model between quality and variables. values we're looking at in this are the P values on the far right under coefficients. We can see that citric acid, chlorides, and total sulfur dioxide have extremely high P values and therefore should be discarded in final model.
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+
+```{r}
+cor(train)
+```
+Correlation between variables. I will be including all corelations with absolute values consistently at or above .2 into the model.
+```{r, fig.width=6, fig.height = 3}
+plot(train$alcohol, train$density, xlab = "Alcohol", ylab = "Density")
+```
+
+```{r, fig.width=6, fig.height = 3}
+plot(train$pH, train$fixed.acidity, xlab = "pH", ylab = "Fixed Acidity")
+```
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+
+```{r, fig.width=6, fig.height = 3}
+plot(train$density, train$residual.sugar, xlab = "Density", ylab = "Residual Sugar")
+```
+
+Some plots of functions with some corelation.
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+
+
+```{r, fig.width=6, fig.height = 3}
+boxplot(train$pH~train$quality, horizontal = TRUE, ylab = "Quality", xlab = "pH")
+```
+
+```{r, fig.width=6, fig.height = 3}
+boxplot(train$alcohol~train$quality, horizontal = TRUE, ylab = "Quality", xlab = "Alcohol")
+```
+
+Boxplots for pH and alcohol. Both appear to have median trend closer sqare root shape.
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+
+
+## Building New Model
+```{r}
+newmod = train(quality ~ fixed.acidity + volatile.acidity + residual.sugar + 
+               free.sulfur.dioxide + density + sqrt(pH) + sulphates +
+               sqrt(alcohol) + 
+              
+               alcohol*density +
+               density*residual.sugar +
+               density*total.sulfur.dioxide +
+               total.sulfur.dioxide*free.sulfur.dioxide +
+               total.sulfur.dioxide*residual.sugar +
+               pH*fixed.acidity +
+               alcohol*total.sulfur.dioxide + 
+               alcohol*residual.sugar + 
+               alcohol*chlorides
+                 
+               + alcohol*total.sulfur.dioxide +
+               alcohol*free.sulfur.dioxide +
+               density*fixed.acidity +
+               density*chlorides +
+               density*free.sulfur.dioxide +
+               citric.acid * fixed.acidity
+               , data = train,
+               method = "lm", preProcess = c("scale", "center"),
+               trControl = trainControl("none"))
+
+newmod_training = predict(newmod, train)
+newmod_testing = predict(newmod, test)
+
+newtrainmodDF = data.frame(train$quality, newmod_training)
+newtrainmodDF = subset(newtrainmodDF, newtrainmodDF$newmod_training>0)
+newtestmodDF = data.frame(test$quality, newmod_testing)
+newtestmodDF = subset(newtestmodDF, newtestmodDF$newmod_testing>0)
+```
+
+New model adjustments include discarding some variables with quality, relations between variables, and square rooting pH and alcohol.
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+\newline
+
+
+## Results New Model
+```{r, fig.width=4, fig.height = 3}
+plot(newtrainmodDF$train.quality, newtrainmodDF$newmod_training, xlab = "Out Actual",
+     ylab = "OutNMod", main = "New Model vs Actual Results (Train)")
+```
+
+```{r}
+cor(newtrainmodDF$train.quality, newtrainmodDF$newmod_training)
+```
+
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+
+```{r, fig.width=4, fig.height = 3}
+plot(newtestmodDF$test.quality, newtestmodDF$newmod_testing, xlab = "Out Actual",
+     ylab = "Out NMod", main = "New Model vs Actual Results (Test)")
+```
+
+```{r}
+cor(newtestmodDF$test.quality, newtestmodDF$newmod_testing)
+```
+
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+
+```{r}
+model = lm(newtrainmodDF$train.quality~newtrainmodDF$newmod_training, data = df)
+summary(residuals(model))
+```
+
+```{r}
+summary(newtrainmodDF$train.quality) #Actual model stats
+```
+
+```{r}
+summary(newtrainmodDF$newmod_training) #Basic model stats
+```
+
+```{r}
+summary(newtestmodDF$test.quality) #Actual model stats
+```
+
+```{r}
+summary(newtestmodDF$newmod_testing) #Basic model stats
+```
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+|
+
+```{r, fig.width=6, fig.height = 4}
+hist(newtrainmodDF$newmod_training, xlab = "New Mod Dist", main = "New Model Distribution (Train)")
+```
+
+```{r, fig.width=6, fig.height = 4}
+hist(newtestmodDF$newmod_testing, xlab = "New Mod Dist", main = "New Model Distribution (Test)")
+```
+
+```{r, fig.width=6, fig.height = 3}
+boxplot(newtrainmodDF$newmod_training, xlab = "Quality", main = "Box New Model (Train)",
+        horizontal = TRUE)
+```
+
+```{r, fig.width=6, fig.height = 3}
+boxplot(newtestmodDF$newmod_testing, xlab = "Quality", main = "Box New Model (Test)",
+        horizontal = TRUE)
+```
+
+## Results of New Model
+Largely the same types of observations from the first model. Most significant differences are training boxplot has more outliers than 1st model training and correlation improves consistently by 4-5 percent.
+
+## Conclusions  
+Overall I was able somewhat reliably predict the quality of the wine data, with an average correlation of around .5-.6. However I was hoping I would be able to predict at a much more reliable rate than what I got.
+
+The reason why it is hard to predict the quality rating is because we’re trying to measure subjectivity and human judgement, which are both wildly varying and unpredictable. People have various preferences for which wine is better, being it a sweet one or a dry one, or whether more alcohol is better. The quality ratings are also at all times in the mercy of one’s mood when they’re doing the testing. They could give a wine a lower rating because they’re in a bad mood or tired of the same-ish wine taste, or better because they’re craving wine or heard a funny joke.
+
+However, despite my shortcoming, I was able to create a more reliable model than the base one with throughout multiple iterations an improvement in predictions by 4-5 percent. Another success I was able to achieve is determine the single biggest variable in determining quality; alcohol content. When you think about it, it makes sense; who doesn’t like getting drunk?
+
+
+Data Citation:  
+Paulo Cortez, University of Minho, Guimarães, Portugal, http://www3.dsi.uminho.pt/pcortez
+A. Cerdeira, F. Almeida, T. Matos and J. Reis, Viticulture Commission of the Vinho Verde Region(CVRVV), Porto, Portugal
+@2009
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+
